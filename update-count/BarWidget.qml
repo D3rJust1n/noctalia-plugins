@@ -70,8 +70,9 @@ Rectangle {
       cursorShape: root.pluginApi?.mainInstance?.updateCount > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
 
       onClicked: {
-          root.pluginApi?.mainInstance?.startDoSystemUpdate();
+        root.pluginApi?.mainInstance?.startDoSystemUpdate();
       }
+
 
       onEntered: {
         root.hovered = true;

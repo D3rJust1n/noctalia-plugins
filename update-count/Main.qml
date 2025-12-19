@@ -101,8 +101,12 @@ Item {
     stdout: StdioCollector {
       onStreamFinished: {
         var count = parseInt(text.trim());
-        root.updateCount = isNaN(count) ? "!" : count;
-        Logger.i("UpdateCount", `Updates available: ${root.updateCount}`);
+        root.updateCount = isNaN(count) ? -1 : count;
+        if (root.updateCount >= 0) {
+          Logger.i("UpdateCount", `Updates available: ${root.updateCount}`);
+        } else {
+          Logger.e("UpdateCount", `getNumUpdates return '${text.trim()}' cannot be parsed into int`);
+        }
       }
     }
   }

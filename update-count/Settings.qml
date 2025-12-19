@@ -25,6 +25,7 @@ ColumnLayout {
 
   //
   // ------ General ------
+  //
   NToggle {
     id: widgetSwitch
     label: pluginApi?.tr("settings.hideWidget.label")
