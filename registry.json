@@ -84,8 +84,11 @@
       "description": "Dynamic keyboard shortcuts cheatsheet that reads and displays Hyprland keybindings. Requires Hyprland window manager.",
       "minNoctaliaVersion": "3.6.0",
       "license": "MIT",
-      "tags": [],
-      "lastUpdated": "2026-01-07T23:11:45+01:00"
+      "tags": [
+        "Utility",
+        "Hyprland"
+      ],
+      "lastUpdated": "2026-01-13T17:31:46-05:00"
     },
     {
       "id": "hyprland-steam-overlay",
@@ -95,8 +98,11 @@
       "description": "Steam overlay with automatic window management for Hyprland..",
       "minNoctaliaVersion": "3.6.0",
       "license": "MIT",
-      "tags": [],
-      "lastUpdated": "2026-01-11T11:27:05-05:00"
+      "tags": [
+        "Gaming",
+        "Hyprland"
+      ],
+      "lastUpdated": "2026-01-13T17:31:46-05:00"
     },
     {
       "id": "kagi-quick-search",
@@ -140,9 +146,9 @@
       "tags": [
         "Bar",
         "Panel",
-        "Gaming"
+        "MangoWC"
       ],
-      "lastUpdated": "2026-01-04T21:11:31-05:00"
+      "lastUpdated": "2026-01-13T17:31:46-05:00"
     },
     {
       "id": "mini-docker",
@@ -334,9 +340,9 @@
       "license": "MIT",
       "tags": [
         "Launcher",
-        "Utilities"
+        "Utility"
       ],
-      "lastUpdated": "2026-01-12T17:50:51+01:00"
+      "lastUpdated": "2026-01-13T17:31:46-05:00"
     },
     {
       "id": "update-count",
