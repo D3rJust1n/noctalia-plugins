@@ -101,10 +101,6 @@ Item {
 
   // Initialize provider
   function init() {
-    Logger.i("UnicodeProvider", "init called");
-    Logger.i("UnicodeProvider", "cacheDir:", cacheDir);
-    Logger.i("UnicodeProvider", "usageFilePath:", usageFilePath);
-    Logger.i("UnicodeProvider", "unicodeDataPath:", unicodeDataPath);
     if (cacheDir) {
       usageFile.path = usageFilePath;
       usageFile.reload();
@@ -230,16 +226,11 @@ Item {
       return;
     }
     Logger.i("UnicodeProvider", "Downloading Unicode data from unicode.org...");
-    Logger.i("UnicodeProvider", "Cache dir:", cacheDir);
 
-    // Download with better error handling and logging
     Quickshell.execDetached(["sh", "-c",
       `mkdir -p "${cacheDir}" && \
-       echo "Downloading UnicodeData.txt..." && \
        curl -f -s -S -o "${unicodeDataPath}" "${unicodeDataUrl}" && \
-       echo "Downloading NameAliases.txt..." && \
-       curl -f -s -S -o "${nameAliasesPath}" "${nameAliasesUrl}" && \
-       echo "Download complete" || echo "Download failed"`
+       curl -f -s -S -o "${nameAliasesPath}" "${nameAliasesUrl}"`
     ]);
     downloadTimer.start();
   }
@@ -336,7 +327,6 @@ Item {
     interval: 5000  // Increased to 5 seconds for slower connections
     repeat: false
     onTriggered: {
-      Logger.i("UnicodeProvider", "Download timer triggered, reloading files...");
       unicodeDataFile.reload();
     }
   }
@@ -359,11 +349,8 @@ Item {
     watchChanges: false
     onLoaded: {
       var content = text();
-      Logger.i("UnicodeProvider", "UnicodeData loaded, size:", content.length);
       if (content && content.length > 1000) {
-        Logger.i("UnicodeProvider", "Parsing UnicodeData...");
         root.unicodeNames = root._parseUnicodeData(content);
-        Logger.i("UnicodeProvider", "Parsed", Object.keys(root.unicodeNames).length, "character names");
         nameAliasesFile.path = root.nameAliasesPath;
         nameAliasesFile.reload();
       } else {
@@ -372,9 +359,8 @@ Item {
       }
     }
     onLoadFailed: {
-      Logger.w("UnicodeProvider", "UnicodeData load failed, downloading...");
+      Logger.w("UnicodeProvider", "UnicodeData not found, downloading...");
       root._downloadUnicodeData();
-      // Don't set loaded=true yet, wait for download to complete
     }
   }
 
@@ -385,10 +371,8 @@ Item {
     watchChanges: false
     onLoaded: {
       var content = text();
-      Logger.i("UnicodeProvider", "NameAliases loaded, size:", content.length);
       if (content) {
         root.unicodeNames = root._parseNameAliases(content, root.unicodeNames);
-        Logger.i("UnicodeProvider", "Total names after aliases:", Object.keys(root.unicodeNames).length);
       }
       root.namesLoaded = true;
       root._categoryCache = {};
@@ -396,8 +380,8 @@ Item {
       Logger.i("UnicodeProvider", "Unicode name database ready!");
     }
     onLoadFailed: {
-      Logger.w("UnicodeProvider", "NameAliases load failed, continuing without aliases");
-      root.namesLoaded = false;  // Names won't be searchable
+      Logger.w("UnicodeProvider", "NameAliases not found, continuing without aliases");
+      root.namesLoaded = false;
       root.loaded = true;
     }
   }
