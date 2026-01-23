@@ -6,68 +6,101 @@ import "CurrencyData.js" as CurrencyData
 Item {
   id: root
 
-  property var pluginApi: null
-
-  // Provider metadata
-  property string name: "FX"
-  property var launcher: null
-  property bool handleSearch: false
-  property string supportedLayouts: "list"
-  property bool supportsAutoPaste: false
-
-  // Access Main.qml instance for shared state/functions
-  readonly property var main: pluginApi?.mainInstance
-
   // Delegate to Main.qml
   readonly property var cachedRates: main?.cachedRates || ({})
-  readonly property bool loading: main?.loading || false
-  readonly property bool loaded: main?.loaded || false
-
-  // Icon mode (tabler vs native)
-  property string iconMode: Settings.data.appLauncher.iconMode
-  function icon(tablerName, nativeName) {
-    return iconMode === "tabler" ? tablerName : nativeName;
-  }
 
   // Configuration
   property var cfg: pluginApi?.pluginSettings || ({})
   property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
+  property bool handleSearch: false
+
+  // Icon mode (tabler vs native)
+  property string iconMode: Settings.data.appLauncher.iconMode
+  property var launcher: null
+  readonly property bool loaded: main?.loaded || false
+  readonly property bool loading: main?.loading || false
+
+  // Access Main.qml instance for shared state/functions
+  readonly property var main: pluginApi?.mainInstance
+
+  // Provider metadata
+  property string name: "FX"
+  property var pluginApi: null
   property string sourceCurrency: cfg.sourceCurrency || defaults.sourceCurrency || "USD"
+  property string supportedLayouts: "list"
+  property bool supportsAutoPaste: false
   property string targetCurrency: cfg.targetCurrency || defaults.targetCurrency || "EUR"
 
-  // Update results when rates change
-  Connections {
-    target: main
-    function onRatesUpdated() {
-      if (launcher) {
-        launcher.updateResults();
-      }
-    }
-  }
-
-  function init() {
-    if (main && !loading && !loaded) {
-      main.fetchRates();
-    }
-  }
-
-  function handleCommand(searchText) {
-    return searchText.startsWith(">fx");
-  }
-
   function commands() {
-    return [{
-      "name": ">fx",
-      "description": "Quick currency conversion (e.g., >fx 100 USD EUR)",
+    return [
+      {
+        "name": ">fx",
+        "description": "Quick currency conversion (e.g., >fx 100 USD EUR)",
+        "icon": icon("cash", "accessories-calculator"),
+        "isTablerIcon": iconMode === "tabler",
+        "isImage": false,
+        "onActivate": function () {
+          launcher.setSearchText(">fx ");
+        }
+      }
+    ];
+  }
+  function doConversion(amount, from, to) {
+    if (!main)
+      return [];
+
+    var result = main.convert(amount, from, to);
+    var rate = main.getRate(from, to);
+
+    // Handle invalid currency codes
+    if (result === null || rate === null) {
+      var invalidCurrency = !main.isValidCurrency(from) ? from : to;
+      return [
+        {
+          "name": "Unknown currency: " + invalidCurrency,
+          "description": "Currency code not found in exchange rates",
+          "icon": icon("alert-circle", "dialog-warning"),
+          "isTablerIcon": iconMode === "tabler",
+          "isImage": false,
+          "onActivate": function () {}
+        }
+      ];
+    }
+
+    var resultStr = main.formatNumber(result);
+    var rateStr = main.formatNumber(rate);
+
+    var results = [];
+
+    // Main result
+    results.push({
+      "name": amount + " " + from + " = " + resultStr + " " + to,
+      "description": "Rate: 1 " + from + " = " + rateStr + " " + to + " | Click to copy",
       "icon": icon("cash", "accessories-calculator"),
       "isTablerIcon": iconMode === "tabler",
       "isImage": false,
-      "onActivate": function() {
-        launcher.setSearchText(">fx ");
+      "onActivate": function () {
+        main.copyToClipboard(resultStr);
+        launcher.close();
       }
-    }];
-  }
+    });
 
+    // Reverse conversion
+    var reverseRate = main.getRate(to, from);
+    results.push({
+      "name": "1 " + to + " = " + main.formatNumber(reverseRate) + " " + from,
+      "description": "Reverse rate | Click to copy",
+      "icon": icon("arrows-exchange", "view-refresh"),
+      "isTablerIcon": iconMode === "tabler",
+      "isImage": false,
+      "onActivate": function () {
+        main.copyToClipboard(main.formatNumber(reverseRate));
+        launcher.close();
+      }
+    });
+
+    return results;
+  }
   function getResults(searchText) {
     if (!searchText.startsWith(">fx")) {
       return [];
@@ -79,27 +112,32 @@ Item {
     }
 
     if (loading) {
-      return [{
-        "name": "Loading exchange rates...",
-        "description": "Fetching from frankfurter.app",
-        "icon": icon("refresh", "view-refresh"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {}
-      }];
+      return [
+        {
+          "name": "Loading exchange rates...",
+          "description": "Fetching from frankfurter.app",
+          "icon": icon("refresh", "view-refresh"),
+          "isTablerIcon": iconMode === "tabler",
+          "isImage": false,
+          "onActivate": function () {}
+        }
+      ];
     }
 
     if (!loading && !loaded) {
-      return [{
-        "name": "Could not load rates",
-        "description": "Check your internet connection. Click to retry.",
-        "icon": icon("alert-circle", "dialog-warning"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {
-          if (main) main.fetchRates(true);
+      return [
+        {
+          "name": "Could not load rates",
+          "description": "Check your internet connection. Click to retry.",
+          "icon": icon("alert-circle", "dialog-warning"),
+          "isTablerIcon": iconMode === "tabler",
+          "isImage": false,
+          "onActivate": function () {
+            if (main)
+              main.fetchRates(true);
+          }
         }
-      }];
+      ];
     }
 
     var query = searchText.slice(3).trim().toUpperCase();
@@ -115,19 +153,65 @@ Item {
 
     // Handle invalid/unknown currency
     if (parsed.error) {
-      return [{
-        "name": parsed.error,
-        "description": "Try a valid currency code (e.g., USD, EUR, PLN)",
-        "icon": icon("alert-circle", "dialog-warning"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {}
-      }];
+      return [
+        {
+          "name": parsed.error,
+          "description": "Try a valid currency code (e.g., USD, EUR, PLN)",
+          "icon": icon("alert-circle", "dialog-warning"),
+          "isTablerIcon": iconMode === "tabler",
+          "isImage": false,
+          "onActivate": function () {}
+        }
+      ];
     }
 
     return doConversion(parsed.amount, parsed.from, parsed.to);
   }
-
+  function getUsageHelp() {
+    return [
+      {
+        "name": ">fx 100 USD EUR",
+        "description": "Convert 100 USD to EUR",
+        "icon": icon("cash", "accessories-calculator"),
+        "isTablerIcon": iconMode === "tabler",
+        "isImage": false,
+        "onActivate": function () {
+          launcher.setSearchText(">fx 100 USD EUR");
+        }
+      },
+      {
+        "name": ">fx 50 BRL",
+        "description": "Convert 50 BRL to " + targetCurrency + " (default)",
+        "icon": icon("cash", "accessories-calculator"),
+        "isTablerIcon": iconMode === "tabler",
+        "isImage": false,
+        "onActivate": function () {
+          launcher.setSearchText(">fx 50 BRL");
+        }
+      },
+      {
+        "name": ">fx EUR GBP",
+        "description": "Show rate for 1 EUR to GBP",
+        "icon": icon("percentage", "accessories-calculator"),
+        "isTablerIcon": iconMode === "tabler",
+        "isImage": false,
+        "onActivate": function () {
+          launcher.setSearchText(">fx EUR GBP");
+        }
+      }
+    ];
+  }
+  function handleCommand(searchText) {
+    return searchText.startsWith(">fx");
+  }
+  function icon(tablerName, nativeName) {
+    return iconMode === "tabler" ? tablerName : nativeName;
+  }
+  function init() {
+    if (main && !loading && !loaded) {
+      main.fetchRates();
+    }
+  }
   function parseQuery(query) {
     // Normalize: split "100PLN" into "100 PLN"
     query = query.replace(/(\d)([A-Z])/g, "$1 $2");
@@ -176,104 +260,34 @@ Item {
 
     // Validate currencies
     if (!cachedRates[from]) {
-      return { error: "Unknown currency: " + from };
+      return {
+        error: "Unknown currency: " + from
+      };
     }
     if (to.length >= 3 && !cachedRates[to]) {
-      return { error: "Unknown currency: " + to };
+      return {
+        error: "Unknown currency: " + to
+      };
     }
     if (to.length < 3) {
       return null;
     }
 
-    return { amount: amount, from: from, to: to };
+    return {
+      amount: amount,
+      from: from,
+      to: to
+    };
   }
 
-  function doConversion(amount, from, to) {
-    if (!main) return [];
-
-    var result = main.convert(amount, from, to);
-    var rate = main.getRate(from, to);
-
-    // Handle invalid currency codes
-    if (result === null || rate === null) {
-      var invalidCurrency = !main.isValidCurrency(from) ? from : to;
-      return [{
-        "name": "Unknown currency: " + invalidCurrency,
-        "description": "Currency code not found in exchange rates",
-        "icon": icon("alert-circle", "dialog-warning"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {}
-      }];
+  // Update results when rates change
+  Connections {
+    function onRatesUpdated() {
+      if (launcher) {
+        launcher.updateResults();
+      }
     }
 
-    var resultStr = main.formatNumber(result);
-    var rateStr = main.formatNumber(rate);
-
-    var results = [];
-
-    // Main result
-    results.push({
-      "name": amount + " " + from + " = " + resultStr + " " + to,
-      "description": "Rate: 1 " + from + " = " + rateStr + " " + to + " | Click to copy",
-      "icon": icon("cash", "accessories-calculator"),
-      "isTablerIcon": iconMode === "tabler",
-      "isImage": false,
-      "onActivate": function() {
-        main.copyToClipboard(resultStr);
-        launcher.close();
-      }
-    });
-
-    // Reverse conversion
-    var reverseRate = main.getRate(to, from);
-    results.push({
-      "name": "1 " + to + " = " + main.formatNumber(reverseRate) + " " + from,
-      "description": "Reverse rate | Click to copy",
-      "icon": icon("arrows-exchange", "view-refresh"),
-      "isTablerIcon": iconMode === "tabler",
-      "isImage": false,
-      "onActivate": function() {
-        main.copyToClipboard(main.formatNumber(reverseRate));
-        launcher.close();
-      }
-    });
-
-    return results;
-  }
-
-  function getUsageHelp() {
-    return [
-      {
-        "name": ">fx 100 USD EUR",
-        "description": "Convert 100 USD to EUR",
-        "icon": icon("cash", "accessories-calculator"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {
-          launcher.setSearchText(">fx 100 USD EUR");
-        }
-      },
-      {
-        "name": ">fx 50 BRL",
-        "description": "Convert 50 BRL to " + targetCurrency + " (default)",
-        "icon": icon("cash", "accessories-calculator"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {
-          launcher.setSearchText(">fx 50 BRL");
-        }
-      },
-      {
-        "name": ">fx EUR GBP",
-        "description": "Show rate for 1 EUR to GBP",
-        "icon": icon("percentage", "accessories-calculator"),
-        "isTablerIcon": iconMode === "tabler",
-        "isImage": false,
-        "onActivate": function() {
-          launcher.setSearchText(">fx EUR GBP");
-        }
-      }
-    ];
+    target: main
   }
 }

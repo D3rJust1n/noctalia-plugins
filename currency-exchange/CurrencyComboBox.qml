@@ -7,48 +7,26 @@ import qs.Widgets
 RowLayout {
   id: root
 
-  property real minimumWidth: 280
-  property real popupHeight: 180
-  property ListModel model: ListModel {}
-  property string currentKey: ""
-  property string placeholder: ""
-  property string searchPlaceholder: "Search..."
-
-  readonly property real preferredHeight: Math.round(Style.baseWidgetSize * 1.1)
-
-  signal selected(string key)
-
-  // Filtered model for search results
-  property ListModel filteredModel: ListModel {}
-  property string searchText: ""
-
-  function findIndexByKey(key) {
-    if (!root.model)
-      return -1;
-    for (var i = 0; i < root.model.count; i++) {
-      if (root.model.get(i).key === key) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   // The active model used for the popup list (source model or filtered results)
   readonly property var activeModel: isFiltered ? filteredModel : root.model
+  property string currentKey: ""
 
-  function findIndexInActiveModel(key) {
-    if (!activeModel || activeModel.count === undefined)
-      return -1;
-    for (var i = 0; i < activeModel.count; i++) {
-      if (activeModel.get(i).key === key) {
-        return i;
-      }
-    }
-    return -1;
+  // Filtered model for search results
+  property ListModel filteredModel: ListModel {
   }
 
   // Whether we're using filtered results or the source model directly
   property bool isFiltered: false
+  property real minimumWidth: 280
+  property ListModel model: ListModel {
+  }
+  property string placeholder: ""
+  property real popupHeight: 180
+  readonly property real preferredHeight: Math.round(Style.baseWidgetSize * 1.1)
+  property string searchPlaceholder: "Search..."
+  property string searchText: ""
+
+  signal selected(string key)
 
   function filterModel() {
     // Check if model exists and has items
@@ -79,10 +57,10 @@ RowLayout {
     // Use fuzzy search if available, fallback to simple search
     if (typeof FuzzySort !== 'undefined') {
       var fuzzyResults = FuzzySort.go(query, items, {
-                                        "key": "name",
-                                        "threshold": -1000,
-                                        "limit": 50
-                                      });
+        "key": "name",
+        "threshold": -1000,
+        "limit": 50
+      });
 
       // Add results in order of relevance
       for (var j = 0; j < fuzzyResults.length; j++) {
@@ -99,6 +77,26 @@ RowLayout {
       }
     }
   }
+  function findIndexByKey(key) {
+    if (!root.model)
+      return -1;
+    for (var i = 0; i < root.model.count; i++) {
+      if (root.model.get(i).key === key) {
+        return i;
+      }
+    }
+    return -1;
+  }
+  function findIndexInActiveModel(key) {
+    if (!activeModel || activeModel.count === undefined)
+      return -1;
+    for (var i = 0; i < activeModel.count; i++) {
+      if (activeModel.get(i).key === key) {
+        return i;
+      }
+    }
+    return -1;
+  }
 
   onSearchTextChanged: filterModel()
 
@@ -108,20 +106,15 @@ RowLayout {
     Layout.fillWidth: true
     Layout.minimumWidth: Math.round(root.minimumWidth * Style.uiScaleRatio)
     Layout.preferredHeight: Math.round(root.preferredHeight * Style.uiScaleRatio)
-    model: root.activeModel
     currentIndex: findIndexInActiveModel(currentKey)
-    onActivated: {
-      if (combo.currentIndex >= 0 && root.activeModel && combo.currentIndex < root.activeModel.count) {
-        root.selected(root.activeModel.get(combo.currentIndex).key);
-      }
-    }
+    model: root.activeModel
 
     background: Rectangle {
-      // implicitWidth: Math.round(Style.baseWidgetSize * 3.75 * Style.uiScaleRatio)
-      implicitHeight: Math.round(root.preferredHeight * Style.uiScaleRatio)
-      color: Color.mSurface
       border.color: combo.activeFocus ? Color.mSecondary : Color.mOutline
       border.width: Style.borderS
+      color: Color.mSurface
+      // implicitWidth: Math.round(Style.baseWidgetSize * 3.75 * Style.uiScaleRatio)
+      implicitHeight: Math.round(root.preferredHeight * Style.uiScaleRatio)
       radius: Style.iRadiusM
 
       Behavior on border.color {
@@ -130,93 +123,73 @@ RowLayout {
         }
       }
     }
-
     contentItem: NText {
-      leftPadding: Style.marginL
-      rightPadding: combo.indicator.width + Style.marginL
-      pointSize: Style.fontSizeM
-      verticalAlignment: Text.AlignVCenter
-      elide: Text.ElideRight
+      readonly property bool hasSelection: root.model && sourceIndex >= 0 && sourceIndex < root.model.count
 
       // Look up current selection directly in source model by key
       readonly property int sourceIndex: root.findIndexByKey(root.currentKey)
-      readonly property bool hasSelection: root.model && sourceIndex >= 0 && sourceIndex < root.model.count
 
       color: hasSelection ? Color.mOnSurface : Color.mOnSurfaceVariant
+      elide: Text.ElideRight
+      leftPadding: Style.marginL
+      pointSize: Style.fontSizeM
+      rightPadding: combo.indicator.width + Style.marginL
       text: hasSelection ? root.model.get(sourceIndex).name : root.placeholder
+      verticalAlignment: Text.AlignVCenter
     }
-
     indicator: NIcon {
-      x: combo.width - width - Style.marginM
-      y: combo.topPadding + (combo.availableHeight - height) / 2
       icon: "caret-down"
       pointSize: Style.fontSizeL
+      x: combo.width - width - Style.marginM
+      y: combo.topPadding + (combo.availableHeight - height) / 2
     }
-
     popup: Popup {
-      y: combo.height + Style.marginS
-      width: combo.width
       height: Math.round((root.popupHeight + 60) * Style.uiScaleRatio)
       padding: Style.marginM
+      width: combo.width
+      y: combo.height + Style.marginS
 
+      background: Rectangle {
+        border.color: Color.mOutline
+        border.width: Style.borderS
+        color: Color.mSurfaceVariant
+        radius: Style.iRadiusM
+      }
       contentItem: ColumnLayout {
         spacing: Style.marginS
 
         // Search input
         NTextInput {
           id: searchInput
-          inputIconName: "search"
+
           Layout.fillWidth: true
+          fontSize: Style.fontSizeS
+          inputIconName: "search"
           placeholderText: root.searchPlaceholder
           text: root.searchText
-          onTextChanged: root.searchText = text
-          fontSize: Style.fontSizeS
-        }
 
+          onTextChanged: root.searchText = text
+        }
         NListView {
           id: listView
-          Layout.fillWidth: true
+
           Layout.fillHeight: true
+          Layout.fillWidth: true
+          horizontalPolicy: ScrollBar.AlwaysOff
           // Use activeModel (source model when not filtering, filtered results when searching)
           model: combo.popup.visible ? root.activeModel : null
-          horizontalPolicy: ScrollBar.AlwaysOff
           verticalPolicy: ScrollBar.AsNeeded
 
           delegate: ItemDelegate {
             id: delegateRoot
-            width: listView.width
+
+            bottomPadding: Style.marginS
+            highlighted: ListView.view.currentIndex === index
+            hoverEnabled: true
             leftPadding: Style.marginM
             rightPadding: Style.marginM
             topPadding: Style.marginS
-            bottomPadding: Style.marginS
-            hoverEnabled: true
-            highlighted: ListView.view.currentIndex === index
-
-            onHoveredChanged: {
-              if (hovered) {
-                ListView.view.currentIndex = index;
-              }
-            }
-
-            onClicked: {
-              var selectedKey = listView.model.get(index).key;
-              root.selected(selectedKey);
-              combo.popup.close();
-            }
-
-            contentItem: NText {
-              text: name
-              pointSize: Style.fontSizeM
-              color: highlighted ? Color.mOnHover : Color.mOnSurface
-              verticalAlignment: Text.AlignVCenter
-              elide: Text.ElideRight
-
-              Behavior on color {
-                ColorAnimation {
-                  duration: Style.animationFast
-                }
-              }
-            }
+            width: listView.width
 
             background: Rectangle {
               anchors.fill: parent
@@ -229,41 +202,66 @@ RowLayout {
                 }
               }
             }
+            contentItem: NText {
+              color: highlighted ? Color.mOnHover : Color.mOnSurface
+              elide: Text.ElideRight
+              pointSize: Style.fontSizeM
+              text: name
+              verticalAlignment: Text.AlignVCenter
+
+              Behavior on color {
+                ColorAnimation {
+                  duration: Style.animationFast
+                }
+              }
+            }
+
+            onClicked: {
+              var selectedKey = listView.model.get(index).key;
+              root.selected(selectedKey);
+              combo.popup.close();
+            }
+            onHoveredChanged: {
+              if (hovered) {
+                ListView.view.currentIndex = index;
+              }
+            }
           }
         }
       }
+    }
 
-      background: Rectangle {
-        color: Color.mSurfaceVariant
-        border.color: Color.mOutline
-        border.width: Style.borderS
-        radius: Style.iRadiusM
+    onActivated: {
+      if (combo.currentIndex >= 0 && root.activeModel && combo.currentIndex < root.activeModel.count) {
+        root.selected(root.activeModel.get(combo.currentIndex).key);
       }
     }
 
     // Update the currentIndex if the currentKey is changed externally
     Connections {
-      target: root
       function onCurrentKeyChanged() {
         combo.currentIndex = root.findIndexInActiveModel(root.currentKey);
       }
+
+      target: root
     }
 
     // Focus search input when popup opens and ensure model is filtered
     Connections {
-      target: combo.popup
       function onVisibleChanged() {
         if (combo.popup.visible) {
           // Ensure the model is filtered when popup opens
           filterModel();
           // Small delay to ensure the popup is fully rendered
           Qt.callLater(() => {
-                         if (searchInput && searchInput.inputItem) {
-                           searchInput.inputItem.forceActiveFocus();
-                         }
-                       });
+            if (searchInput && searchInput.inputItem) {
+              searchInput.inputItem.forceActiveFocus();
+            }
+          });
         }
       }
+
+      target: combo.popup
     }
   }
 }

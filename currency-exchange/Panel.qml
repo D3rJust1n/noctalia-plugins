@@ -10,40 +10,22 @@ import "CurrencyData.js" as CurrencyData
 Item {
   id: root
 
-  property var pluginApi: null
-
-  readonly property var geometryPlaceholder: panelContainer
-  property real contentPreferredWidth: 420 * Style.uiScaleRatio
-  property real contentPreferredHeight: 280 * Style.uiScaleRatio
   readonly property bool allowAttach: true
-
-  anchors.fill: parent
-
-  readonly property var main: pluginApi?.mainInstance
-
   property var cfg: pluginApi?.pluginSettings || ({})
-  property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
-
-  property string fromCurrency: cfg.sourceCurrency || defaults.sourceCurrency
-  property string toCurrency: cfg.targetCurrency || defaults.targetCurrency
-  property real fromAmount: 1.0
-
-  readonly property bool loading: main?.loading || false
-  readonly property bool loaded: main?.loaded || false
-  readonly property real toAmount: main ? main.convert(fromAmount, fromCurrency, toCurrency) : 0
-  readonly property real rate: main ? main.getRate(fromCurrency, toCurrency) : 0
-
+  property real contentPreferredHeight: 280 * Style.uiScaleRatio
+  property real contentPreferredWidth: 420 * Style.uiScaleRatio
   property var currencyModel: CurrencyData.buildCompactModel()
-
-  ListModel {
-    id: currencyListModel
-    Component.onCompleted: {
-      for (var i = 0; i < CurrencyData.currencies.length; i++) {
-        var code = CurrencyData.currencies[i];
-        append({ "key": code, "name": code });
-      }
-    }
-  }
+  property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
+  property real fromAmount: 1.0
+  property string fromCurrency: cfg.sourceCurrency || defaults.sourceCurrency
+  readonly property var geometryPlaceholder: panelContainer
+  readonly property bool loaded: main?.loaded || false
+  readonly property bool loading: main?.loading || false
+  readonly property var main: pluginApi?.mainInstance
+  property var pluginApi: null
+  readonly property real rate: main ? main.getRate(fromCurrency, toCurrency) : 0
+  readonly property real toAmount: main ? main.convert(fromAmount, fromCurrency, toCurrency) : 0
+  property string toCurrency: cfg.targetCurrency || defaults.targetCurrency
 
   function swapCurrencies() {
     var temp = fromCurrency;
@@ -51,13 +33,36 @@ Item {
     toCurrency = temp;
   }
 
+  anchors.fill: parent
+
+  Component.onCompleted: {
+    if (main) {
+      main.fetchRates();
+    }
+  }
+
+  ListModel {
+    id: currencyListModel
+
+    Component.onCompleted: {
+      for (var i = 0; i < CurrencyData.currencies.length; i++) {
+        var code = CurrencyData.currencies[i];
+        append({
+          "key": code,
+          "name": code
+        });
+      }
+    }
+  }
   Rectangle {
     id: panelContainer
+
     anchors.fill: parent
     color: "transparent"
 
     ColumnLayout {
       id: mainColumn
+
       anchors.fill: parent
       anchors.margins: Style.marginL
       spacing: Style.marginM
@@ -69,28 +74,27 @@ Item {
 
         RowLayout {
           id: headerRow
+
           anchors.fill: parent
           anchors.margins: Style.marginM
           spacing: Style.marginM
 
           NIcon {
+            color: Color.mPrimary
             icon: "currency-dollar"
             pointSize: Style.fontSizeXXL
-            color: Color.mPrimary
           }
-
           NText {
-            text: "Currency Converter"
-            pointSize: Style.fontSizeL
-            font.weight: Style.fontWeightBold
-            color: Color.mOnSurface
             Layout.fillWidth: true
+            color: Color.mOnSurface
+            font.weight: Style.fontWeightBold
+            pointSize: Style.fontSizeL
+            text: "Currency Converter"
           }
-
           NIconButton {
+            baseSize: Style.baseWidgetSize * 0.8
             icon: "settings"
             tooltipText: "Settings"
-            baseSize: Style.baseWidgetSize * 0.8
 
             onClicked: {
               var screen = pluginApi?.panelOpenScreen;
@@ -99,22 +103,24 @@ Item {
               }
             }
           }
-
           NIconButton {
+            baseSize: Style.baseWidgetSize * 0.8
             icon: "refresh"
             tooltipText: "Refresh rates"
-            baseSize: Style.baseWidgetSize * 0.8
+
             onClicked: {
-              if (main) main.fetchRates(true);
+              if (main)
+                main.fetchRates(true);
             }
           }
-
           NIconButton {
+            baseSize: Style.baseWidgetSize * 0.8
             icon: "close"
             tooltipText: "Close"
-            baseSize: Style.baseWidgetSize * 0.8
+
             onClicked: {
-              if (pluginApi) pluginApi.withCurrentScreen((s) => pluginApi.closePanel(s))
+              if (pluginApi)
+                pluginApi.withCurrentScreen(s => pluginApi.closePanel(s));
             }
           }
         }
@@ -122,8 +128,8 @@ Item {
 
       // Converter Form
       NBox {
-        Layout.fillWidth: true
         Layout.fillHeight: true
+        Layout.fillWidth: true
         color: Color.mSurfaceVariant
         radius: Style.radiusM
 
@@ -139,26 +145,28 @@ Item {
 
             Rectangle {
               id: fromInputRect
+
               Layout.fillWidth: true
-              Layout.preferredWidth: 100
               Layout.preferredHeight: Style.baseWidgetSize
-              color: Color.mSurfaceVariant
+              Layout.preferredWidth: 100
               border.color: fromInput.activeFocus ? Color.mPrimary : Color.mOutline
               border.width: fromInput.activeFocus ? 2 : Style.borderS
+              color: Color.mSurfaceVariant
               radius: Style.iRadiusM
 
               TextInput {
                 id: fromInput
+
                 anchors.fill: parent
                 anchors.leftMargin: Style.marginL
                 anchors.rightMargin: Style.marginL
-                verticalAlignment: Text.AlignVCenter
-                horizontalAlignment: Text.AlignRight
                 color: Color.mOnSurface
                 font.pointSize: Style.fontSizeM
                 font.weight: Font.Medium
+                horizontalAlignment: Text.AlignRight
                 selectByMouse: true
                 text: fromAmount.toString()
+                verticalAlignment: Text.AlignVCenter
 
                 validator: RegularExpressionValidator {
                   regularExpression: /^\d*[.,]?\d{0,2}$/
@@ -173,14 +181,15 @@ Item {
                 }
               }
             }
-
             CurrencyComboBox {
               id: fromCombo
+
               Layout.fillWidth: true
               Layout.preferredWidth: 100
+              currentKey: fromCurrency
               minimumWidth: 100
               model: currencyListModel
-              currentKey: fromCurrency
+
               onSelected: key => {
                 fromCurrency = key;
               }
@@ -193,16 +202,19 @@ Item {
             Layout.preferredHeight: Style.baseWidgetSize * 0.8
             spacing: Style.marginS
 
-            Item { Layout.fillWidth: true }
-
+            Item {
+              Layout.fillWidth: true
+            }
             NIconButton {
+              baseSize: Style.baseWidgetSize * 0.7
               icon: "arrows-exchange"
               tooltipText: "Swap currencies"
-              baseSize: Style.baseWidgetSize * 0.7
+
               onClicked: swapCurrencies()
             }
-
-            Item { Layout.fillWidth: true }
+            Item {
+              Layout.fillWidth: true
+            }
           }
 
           // Row 2: To input (result) + To combo
@@ -212,9 +224,10 @@ Item {
 
             Rectangle {
               id: toInputRect
+
               Layout.fillWidth: true
-              Layout.preferredWidth: 100
               Layout.preferredHeight: Style.baseWidgetSize
+              Layout.preferredWidth: 100
               color: Color.mPrimary
               radius: Style.iRadiusM
 
@@ -225,52 +238,57 @@ Item {
                 spacing: Style.marginXS
 
                 NText {
-                  Layout.fillWidth: true
                   Layout.fillHeight: true
-                  verticalAlignment: Text.AlignVCenter
-                  horizontalAlignment: Text.AlignRight
-                  text: loaded ? toAmount.toFixed(2) : (loading ? "..." : "--")
+                  Layout.fillWidth: true
                   color: Color.mOnPrimary
-                  pointSize: Style.fontSizeM
                   font.weight: Style.fontWeightBold
+                  horizontalAlignment: Text.AlignRight
+                  pointSize: Style.fontSizeM
+                  text: loaded ? toAmount.toFixed(2) : (loading ? "..." : "--")
+                  verticalAlignment: Text.AlignVCenter
                 }
-
                 NIconButton {
                   id: copyBtn
+
                   Layout.alignment: Qt.AlignVCenter
+                  baseSize: Style.baseWidgetSize * 0.7
                   icon: "copy"
                   tooltipText: "Copy result"
-                  baseSize: Style.baseWidgetSize * 0.7
                   visible: loaded && toAmount > 0
+
                   onClicked: main.copyToClipboard(toAmount.toFixed(2))
                 }
               }
             }
-
             CurrencyComboBox {
               id: toCombo
+
               Layout.fillWidth: true
               Layout.preferredWidth: 100
+              currentKey: toCurrency
               minimumWidth: 100
               model: currencyListModel
-              currentKey: toCurrency
+
               onSelected: key => {
                 toCurrency = key;
               }
             }
           }
-
-          Item { Layout.fillHeight: true }
+          Item {
+            Layout.fillHeight: true
+          }
 
           // Rate info
           NText {
             Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
             color: Color.mOnSurfaceVariant
+            horizontalAlignment: Text.AlignHCenter
             pointSize: Style.fontSizeS
             text: {
-              if (loading) return "Loading rates...";
-              if (!loaded) return "Could not load rates";
+              if (loading)
+                return "Loading rates...";
+              if (!loaded)
+                return "Could not load rates";
               return "1 " + fromCurrency + " = " + main?.formatNumber(rate) + " " + toCurrency;
             }
           }
@@ -278,26 +296,20 @@ Item {
           // Last update time
           NText {
             Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
             color: Color.mOnSurfaceVariant
+            horizontalAlignment: Text.AlignHCenter
             opacity: 0.6
             pointSize: Style.fontSizeXS
-            visible: loaded && main?.lastFetch > 0
             text: {
-              if (!main?.lastFetch) return "";
+              if (!main?.lastFetch)
+                return "";
               var date = new Date(main.lastFetch);
               return "Updated " + date.toLocaleTimeString(Qt.locale(), "HH:mm");
             }
+            visible: loaded && main?.lastFetch > 0
           }
         }
       }
-
-    }
-  }
-
-  Component.onCompleted: {
-    if (main) {
-      main.fetchRates();
     }
   }
 }
